@@ -195,8 +195,11 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 // Multer for crop image uploads — only accept image files
+// On Vercel, only /tmp is writable; locally use ./uploads
+const IS_VERCEL = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+const UPLOAD_DIR = IS_VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads/');
 const upload = multer({
-  dest: path.join(__dirname, 'uploads/'),
+  dest: UPLOAD_DIR,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/bmp'];
@@ -204,14 +207,18 @@ const upload = multer({
     else cb(new Error('INVALID_IMAGE: Only JPEG, PNG, WebP images are allowed'), false);
   }
 });
-if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
-  fs.mkdirSync(path.join(__dirname, 'uploads'));
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.log('Upload dir creation skipped:', e.message);
 }
 
 // ============================================
 // 1. LIVE WEATHER API (Open-Meteo) WITH CACHE
 // ============================================
-const CACHE_FILE = path.join(__dirname, '.weather-cache.json');
+const CACHE_FILE = IS_VERCEL ? '/tmp/.weather-cache.json' : path.join(__dirname, '.weather-cache.json');
 let globalWeatherCache = new Map();
 try {
   if (fs.existsSync(CACHE_FILE)) {
@@ -1517,19 +1524,25 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Server error', message: err.message });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`\n🌾 AgriVision Server running at http://localhost:${PORT}`);
-  console.log(`📡 Weather API: http://localhost:${PORT}/api/weather`);
-  console.log(`💰 Market Prices: http://localhost:${PORT}/api/market`);
-  console.log(`📸 Crop Disease: POST http://localhost:${PORT}/api/crop-disease`);
-  console.log(`🛒 Sell Crop: POST http://localhost:${PORT}/api/sell`);
-  console.log(`🧾 Schemes: http://localhost:${PORT}/api/schemes`);
-  console.log(`🌍 Geocode: http://localhost:${PORT}/api/geocode`);
-  console.log(`\n✅ Server stable — will NOT crash on errors!\n`);
-});
+// Export for Vercel serverless deployment
+module.exports = app;
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down server...');
-  server.close(() => process.exit(0));
-});
+// Only start listening when running locally (not on Vercel)
+if (!IS_VERCEL) {
+  const server = app.listen(PORT, () => {
+    console.log(`\n🌾 AgriVision Server running at http://localhost:${PORT}`);
+    console.log(`📡 Weather API: http://localhost:${PORT}/api/weather`);
+    console.log(`💰 Market Prices: http://localhost:${PORT}/api/market`);
+    console.log(`📸 Crop Disease: POST http://localhost:${PORT}/api/crop-disease`);
+    console.log(`🛒 Sell Crop: POST http://localhost:${PORT}/api/sell`);
+    console.log(`🧾 Schemes: http://localhost:${PORT}/api/schemes`);
+    console.log(`🌍 Geocode: http://localhost:${PORT}/api/geocode`);
+    console.log(`\n✅ Server stable — will NOT crash on errors!\n`);
+  });
+
+  // Graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('\n🛑 Shutting down server...');
+    server.close(() => process.exit(0));
+  });
+}

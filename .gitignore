@@ -22,3 +22,9 @@ yarn-error.log*
 # Uploads/Temp
 uploads/
 temp/
+
+# Weather cache (generated at runtime)
+.weather-cache.json
+
+# Python venv
+.venv/
