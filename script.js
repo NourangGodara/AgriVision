@@ -1182,7 +1182,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Use current data for today, otherwise use daily max stats for future days
     const code = isToday ? (c?.weather_code || 0) : (d.weather_code[dayIndex] || 0);
     const info = getWeatherInfo(code);
-    const temp = isToday ? Math.round(c?.temperature_2m || 0) : Math.round(d.temperature_2m_max[dayIndex] || 0);
+    
+    // For today: show daily max as the main number (what users expect)
+    // Show current temp + low in a sub-line
+    const todayMax = Math.round(d.temperature_2m_max[dayIndex] || 0);
+    const todayMin = Math.round(d.temperature_2m_min[dayIndex] || 0);
+    const currentTemp = Math.round(c?.temperature_2m || 0);
+    const temp = isToday ? todayMax : Math.round(d.temperature_2m_max[dayIndex] || 0);
 
     const precip = isToday ? (c?.precipitation || 0) : (d.precipitation_probability_max[dayIndex] || 0);
     const hum = isToday ? (c?.relative_humidity_2m || 0) : '--'; // No direct humidity in daily, default to --
@@ -1194,6 +1200,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const tempNum = document.getElementById('gw-temp-num');
     if (tempNum) tempNum.textContent = temp;
+
+    // Show high/low line (or current + low for today)
+    const hiloEl = document.getElementById('gw-hilo');
+    if (hiloEl) {
+      if (isToday) {
+        hiloEl.innerHTML = `<span style="color:#5f6368;">Now: ${currentTemp}°</span> · <span style="color:#4285f4;">Low: ${todayMin}°</span>`;
+      } else {
+        hiloEl.innerHTML = `<span style="color:#ea4335;">High: ${todayMax}°</span> · <span style="color:#4285f4;">Low: ${todayMin}°</span>`;
+      }
+    }
 
     const precipVal = document.getElementById('gw-precip-val');
     if (precipVal) precipVal.textContent = precip + '%';
