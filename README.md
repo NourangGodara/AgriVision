@@ -21,7 +21,7 @@
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/nouranglal810-png/AgriVision.git
+   git clone https://github.com/NourangGodara/AgriVision.git
    cd AgriVision
    ```
 
